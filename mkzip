@@ -1,0 +1,2 @@
+rm project.zip
+zip -r project.zip piland_jonathan_final_project.pdf piland_jonathan_final_project.tex src/* background/* generated_examples/* recorded_examples/* secret_messages/* src/*

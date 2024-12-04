@@ -5,4 +5,6 @@ project.zip
 *.fls
 *.fdb_latexmk
 *.aux
+*.asv
+*.zip
 _minted*
