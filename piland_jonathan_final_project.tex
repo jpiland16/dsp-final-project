@@ -1,0 +1,75 @@
+\documentclass{article}    
+\usepackage[margin=0.5in]{geometry}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[us]{datetime}
+
+\usepackage{pdfpages}
+\usepackage{graphicx}
+\usepackage{minted}
+\usepackage{hyperref}
+
+\setlength{\parindent}{0pt}
+
+% SOME NOTES
+%  - Start the auto-PDF-generator with `./lm`
+%  - Use the T and F9 keys in Atril to minimize the toolbar and side panes
+%
+
+\newcommand{\classname}{EN.525.627: Digital Signal Processing}
+\newcommand{\classprof}{Prof. Brian Jennison}
+
+\title{\vspace{64pt} \bf{DSP Final Project} \\ \textnormal{BPSK in audio steganography: a noise-resistant encoding scheme}}
+\newdate{date}{4}{12}{2024}
+
+% Hack this field to get some extra text in the title
+% https://tex.stackexchange.com/questions/63384/add-additional-text-on-title-page
+\author{\bf{Jonathan Piland}}
+\date{\parbox{\linewidth}{\centering
+  \endgraf\bigskip
+  \classname\endgraf
+  \classprof\endgraf\medskip
+  Whiting School of Engineering \endgraf
+Johns Hopkins University\endgraf\bigskip\displaydate{date}}}
+
+% OPTIONAL use of alphabetic characters for numbering... comment if unwanted
+% (usually used for EN.525.627)
+% \renewcommand\thesection{\arabic{section}.}
+% \renewcommand\thesubsection{\arabic{section}.\alph{subsection}.}
+%
+
+\begin{document}
+\maketitle
+
+\newpage
+\section{Introduction}
+% Describe the project that you performed. What problem were 
+% you trying to solve? Why is it important?
+
+\section{Approach}
+% What was the general approach that you took? What other
+% approaches might be considered to address the same problem? What are
+% advantages and disadvantages to your approach?
+
+\section{Results}
+% This section will likely be the largest section in your report. It should
+% include figures, tables, graphs, etc. summarizing the results of your project.
+
+\section{Summary and Future Work}
+% What did you learn while completing this
+% project? If you had additional time, what else would you have done?
+
+\section{References}
+
+\newpage
+\section{Appendix: MATLAB Code}
+\subsection{\texttt{project\_code.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{project_code.m}
+
+% \subsection{\texttt{encode\_message\_LSB.m}}
+% \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{encode_message_}
+
+\subsection{\texttt{decode\_message\_LSB.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{project_code.m}
+
+\end{document}

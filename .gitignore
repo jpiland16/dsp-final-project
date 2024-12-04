@@ -1,0 +1,8 @@
+project.zip
+*.pdf
+*.out
+*.log
+*.fls
+*.fdb_latexmk
+*.aux
+_minted*
