@@ -15,7 +15,7 @@ message_amplitude = 1;                              % amplitude scaling of modul
 error_factor      = 0.0001;                         % tuning factor for Costas loop in phase detection
 
 
-rolloff           = 0; % [0, 1] rolloff of RRC filter
+rolloff           = 0.25; % [0, 1] rolloff of RRC filter
 filter_clip       = 11;   % in number of symbol periods
 
 Fs = 44100;

@@ -105,6 +105,7 @@ disp(received_message_bpsk(1:100))
 secret_audio_bpsk_noisy = secret_audio_bpsk + randn(size(secret_audio_bpsk)) * 0.1;
 audiowrite("generated_examples/06_lsb_lewis_8s_bpsk_noisy.wav", secret_audio_bpsk_noisy, Fs, "BitsPerSample", 32);
 
+baseband_first = baseband1; % pull variable from other file for plotting in analysis
 
 received_message_bpsk_noisy = decode_message_BPSK(secret_audio_bpsk_noisy);
 disp(received_message_bpsk_noisy(1:100))

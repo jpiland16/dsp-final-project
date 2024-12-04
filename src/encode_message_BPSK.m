@@ -51,7 +51,7 @@ function [A] = encode_message_BPSK(background_audio, message)
     symbols_per_group = chars_per_group * BITS_PER_BYTE + length(sync_sequence);
     symbols_duration_seconds = symbols_per_group * num_groups / symbol_rate;
 
-    % assignin('base', 'stt', symbols_with_sync) % debug
+    assignin('base', 'symbols_with_sync', symbols_with_sync) % for analysis later
     
     carrier_samples = symbols_duration_seconds * Fs;
     T = (1:carrier_samples)/Fs;
@@ -63,6 +63,8 @@ function [A] = encode_message_BPSK(background_audio, message)
 
     % apply modulation
     modulated_carrier = carrier_wave .* baseband_signal(1:length(symbols_with_sync)*samples_per_symbol);
+
+    assignin('base', "modulated_carrier", modulated_carrier); % for analysis later
     
     % add to background
     A = modulated_carrier .* message_amplitude + background_audio(1:length(modulated_carrier));

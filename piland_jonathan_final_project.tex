@@ -52,6 +52,20 @@ NOTE: All code, audio samples, and text files are available at
 \section{Introduction}
 % Describe the project that you performed. What problem were 
 % you trying to solve? Why is it important?
+Hiding a message in an ordinary-seeming object is a task that happens quite
+frequently in the digital age. For example, the producer of a digital video
+may desire to hide a message within the video file to indicate that they are the rightful
+owner of the content in the video. Alternatively, an individual in an intelligence
+role might want to transfer a message to another individual via a covert medium
+that appears to be a normal music file, for example.
+
+\vspace{6pt}
+
+This project explores the possibility of hiding data within an audio file, a process
+that is known as \textit{audio steganography}. There are some methods of covertly inserting 
+a message into an audio signal that might be
+more susceptible to detection or destruction than others; this project explores
+two of those possibilities and proves the superiority of one.
 
 \section{Approach}
 % What was the general approach that you took? What other
@@ -75,7 +89,7 @@ added to the LSBs.
 
 \begin{center}
   \includegraphics[width=3in]{img/01_original_spectrum.png} \\
-  \textbf{Figure 1: Spectrum of signal used for hiding secret message, before inserting data.}
+  \textbf{Figure 1: Spectrum of signal used for hiding secret message, before inserting data}
 \end{center}
 
 After adding the data to the LSB of each sample, the difference in the spectra
@@ -84,7 +98,7 @@ smaller than the maximum amplitude of the original spectrum:
 
 \begin{center}
   \includegraphics[width=3in]{img/02_difference_spectrum.png} \\
-  \textbf{Figure 2: Difference in spectra between original and secret audio.}
+  \textbf{Figure 2: Difference in spectra between original and secret audio}
 \end{center}
 
 Using this technique, data can be hidden within
@@ -93,7 +107,6 @@ of 44.1 kHz, data can be hidden at a rate of about 5.38 kB/s. However, this
 encoding is extremely susceptible to noise - a result which will be shown in the
 next section (Results).
 
-\newpage
 \subsection{Binary phase-shift keying}
 Binary phase-shift keying (BPSK) is a subset of phase-shift keying that uses
 just two phases of a carrier wave to encode and transmit data. To better
@@ -102,7 +115,7 @@ diagram from Schaumont is helpful:
 
 \begin{center}
   \includegraphics[width=7in]{img/commsystem.png} \\
-  \textbf{Figure 3: Simplified view of a data communication system.} \\
+  \textbf{Figure 3: Simplified view of a data communication system} \\
   Figure reproduced from \href{https://schaumont.dyn.wpi.edu/ece4703b21/lecture9.html}{Schaumont}.
 \end{center}
 
@@ -187,7 +200,7 @@ sinc function is plotted on the graph below.
 
 \begin{center}
   \includegraphics[width=3in]{img/04_difference_spectrum_repeat_sinc.png} \\
-  \textbf{Figure 3: Difference in spectra between original and secret audio when repeating bits.}
+  \textbf{Figure 3: Difference in spectra between original and secret audio when repeating bits}
 \end{center}
 
 Using the repeats at this level of noise with a decoder that takes the majority
@@ -208,43 +221,293 @@ signal.
 
 \begin{center}
   \includegraphics[width=3in]{img/05_difference_spectrum_repeat_sinc_noisy.png} \\
-  \textbf{Figure 4: Difference in spectra between original and secret audio with repeats and noise.}
+  \textbf{Figure 4: Difference in spectra between original and secret audio with repeats and noise}
 \end{center}
 
 \subsection{Implementation of BPSK modulator/demodulator}
+
+As previously discussed, the BPSK modulator and demodulator were implemented
+using a three-stage model of the transmitter and receiver: encoding, pulse
+shaping, and modulation at the transmitter followed by demodulation, pulse
+matching, and decoding at the receiver.
+
+\vspace{6pt}
+
+Encoding the binary data as symbols was relatively straightforward, and was
+conducted in a similar manner to that when converting the message to bits for
+LSB encoding. In this case, however, the final output was the symbols $-1$ and
+$+1$ rather than the binary values of 0 and 1. This encoding is demonstrated
+by the below MATLAB code.
+
+\inputminted[xleftmargin=24pt, linenos=true, breaklines, firstline=32, lastline=39]{matlab}{src/encode_message_BPSK.m}
+
+In addition to this encoding, a synchronization sequence which consisted of 16
+`'$+1$' symbols followed by an alternating sequence of length 16 was added to
+each group of characters. This aids in recognition of the signal at the
+demodulator. Character groups of length 32 were used, and therefore there is an
+overhead of 16 symbols per 256 symbols of characters, i.e. 12.5\% overhead.
+
+\inputminted[xleftmargin=24pt, linenos=true, breaklines, firstline=41, lastline=49]{matlab}{src/encode_message_BPSK.m}
+
+The next step, which is arguably the most interesting from a DSP perspective,
+is the upsampling and pulse shaping of the signal into a baseband waveform.
+Immediately after upsampling, the waveform contains high-frequency replicated
+components due to the addition of ($N - 1$) zeros between each symbol. This
+unnecessarily increases the signal bandwidth, and should be reduced.
+
+\vspace{6pt}
+
+Before the application of the pulse-shaping filter, the upsampled signal
+has an extremely wide bandwidth:
+
+\begin{center}
+  \includegraphics[width=3in]{img/06_symbols.png} \hspace{6pt}
+  \includegraphics[width=3in]{img/07_fft_symbols_up.png} \\
+  \textbf{Figure 5: Start of symbols to transmit (left) and Fourier transform of upsampled symbols (right)}
+\end{center}
+
+To reduce the bandwidth of the signal, a root-raised cosine filter was chosen
+and implemented in MATLAB using \texttt{rcosdesign}. The parameters selected
+were a rolloff factor of 0.25 (additional bandwidth beyond the signal
+bandwidth) and a filter cutoff spanning 11 symbol periods. The relevant
+tradeoffs here are as follows:
+
+\begin{enumerate}
+  \item A larger rolloff means that the height of the pulse approaches zero more quickly, which means the pulse is closer to an all-pass filter (delta function). This requires a smaller filter to implement, but comes at the expense of higher bandwidth.
+  \item A smaller rolloff means that the resulting signal bandwidth will be less, but a longer filter is required.
+  \item Clipping the filter to a certain number of symbol periods means there may be some ``jumps" in the signal or imperfect interpolation.
+\end{enumerate}
+
+After creating the filter using \texttt{rcosdesign}, the resulting pulse had
+the following shape and Fourier transform:
+
+\begin{center}
+  \includegraphics[width=3in]{img/08_rcpulse.png} \hspace{6pt}
+  \includegraphics[width=3in]{img/09_rcpulse_fft.png} \\
+  \textbf{Figure 6: Pulse shape and frequency response of root-raised cosine filter}
+\end{center}
+
+This FIR filter has a length of 177 and a constant group delay of 88 samples.
+Its cutoff frequency is, as expected, slightly more than 1/16th of the Nyquist
+frequency, which means its cutoff frequency is about 1400 Hz.
+
+\vspace{6pt}
+
+After applying the RRC pulse to the upsampled baseband signal, the bandwidth of
+the signal is greatly reduced, as shown in the figure below. (The colored
+rectangles in the graph at right identify the symbol being encoded - green is
+$+1$ while red is $-1$.)
+
+\begin{center}
+  \includegraphics[width=3in]{img/12_baseband.png} \hspace{6pt}
+  \includegraphics[width=3in]{img/11_fft_symbols_up.png} \\
+  \textbf{Figure 7: Start of symbols to transmit (left) and Fourier transform of pulse-shaped symbols (right)}
+\end{center}
+
+An interesting plot which I learned about during this project is the eye diagram,
+which superimposes all symbol waveforms over top of each other. I have colorized
+the plot so it is clear which waveforms correspond to the $+1$ (green) and $-1$
+(red) symbols. The reason that symbols can have different waveforms is due to
+the interpolation signal from adjacent symbols that appears due to the raised
+cosine filter.
+
+\begin{center}
+  \includegraphics[width=3in]{img/12_eyediagram.png} \\
+  \textbf{Figure 8: Eye diagram for baseband signal}
+\end{center}
+
+After modulation, the frequency spectrum is shifted to the high frequency ends of
+the spectrum. A high-frequency carrier was chosen so this modulation would be
+inaudible to the human ear.
+
+\begin{center}
+  \includegraphics[width=3in]{img/14_mc.png} \hspace{6pt}
+  \includegraphics[width=3in]{img/13_mc_fft.png} \\
+  \textbf{Figure 9: Start of modulated carrier (left) and Fourier transform of waveform (right)}
+\end{center}
+
+The final step in this system is to add the background audio as a cover for our
+ultrasonic signal. This does not significantly affect the high-frequency content
+of the signal, as shown below.
+
+
+\begin{center}
+  \includegraphics[width=3in]{img/15_bpsk_fft.png} \\
+  \textbf{Figure 10: FFT of signal with cover audio}
+\end{center}
+
+To demodulate the signal, a Costas loop was implemented based on discussions
+found in Schaumont. The Costas loop detects the baseband signal by using the
+error between the in-phase (I) and out-of-phase (Q) branches to correct the
+phase of the local oscillator. The matched RRC pulse is applied in determining this
+phase error. A method of trial and error was employed in order
+to find the correct tuning factor for the phase correction.
+
+\vspace{6pt}
+
+After the Costas loop has locked on to the signal, the demodulated baseband signal
+can be found at the output of the I branch of the loop. 
+
+\vspace{6pt}
+
+One major improvement that was made to this loop was the use of an elementwise
+multiplication and sum to determine the instantaneous error as opposed to selecting
+a single element from the convolution of the RRC pulse with the entire loop output
+up to that point (which is the method that was proposed in Schaumont.)
+
+\vspace{6pt}
+
+After recovering the baseband signal, the symbols can be decoded if the symbol
+offset is known relative to the timing of the Costas loop. While we could
+accurately predict the symbol placement based on the group delays of the matched
+filter, if the system was receiving a signal asynchronously from a different
+device, this timing might not be known. To address this potential issue, a simple
+solution to recover symbol timing was created. The average deviation over a sample
+period was taken for each of the 16 possible timing offsets, and the maximum
+absolute value of this average deviation indicates the timing which is most
+closely aligned with symbol edges. A plot of the scores for different offsets
+is shown below for reference.
+
+
+\begin{center}
+  \includegraphics[width=3in]{img/16_scores.png} \\
+  \textbf{Figure 11: Use of deviation score to recover symbol timing}
+\end{center}
+
+After timing recovery, an eye diagram can be constructed at the receiver:
+
+\begin{center}
+  \includegraphics[width=3in]{img/17_eyediagram1.png} \\
+  \textbf{Figure 12: Eye diagram for baseband signal after recovery}
+\end{center}
+
+This diagram shows a clear distinction between the symbols, and indicates that the 
+center region of a symbol is an ideal region for deciding which of the two symbols
+is present in a signal.
+
+\vspace{6pt}
+
+After recovering the symbol timing and extracting symbols from the received
+baseband signal, the remaining task was to identify the synchronization sequence
+and convert the received symbols into ASCII characters. The code that performs
+this decoding is shown below. Importantly, the symbols have to be checked for
+a 180-degree phase flip, since the Costas loop has an ambiguity in the
+detected phase. The known signs of the synchronization signal can be used to
+identify a phase flip.
+
+\inputminted[xleftmargin=24pt, linenos=true, breaklines, firstline=107, lastline=132]{matlab}{src/decode_message_BPSK.m}
+
+\subsection{Major results}
+Using the system described above, the secret message can be decoded
+with \textbf{complete accuracy, even in the presence of noise}. The system
+was tested and confirmed to be resilient to noise levels up to one-tenth
+of the overall signal level (-20 dB). This is an improvement on the order of
+nine orders of magnitude in the amount of noise tolerated when compared to the
+LSB encoding method, and the sound is still completely inaudible to the human ear.
+When listening to the BPSK-modulated signal with noise (see audio sample 06), the noise is clearly
+clearly audible to the human ear, but the signal is still undetectable. This means that the secret data could be stored in an audio file undetected and
+used to secretly convey a message, even if noise was added to the signal to
+attempt to destroy the message.
+ 
+\vspace{6pt}
+
+The eye diagram below shows how the eye diagram changes through the addition of
+noise, but there is still enough ``whitespace'' to correctly identify each symbol.
+
+\begin{center}
+  \includegraphics[width=3in]{img/18_eyediagram2.png} \\
+  \textbf{Figure 13: Eye diagram for baseband signal after recovery in noise}
+\end{center}
+
 
 \section{Summary and Future Work}
 % What did you learn while completing this
 % project? If you had additional time, what else would you have done?
 
+\subsection{Knowledge gained}
+
+One topic I learned about this project was the use of root-raised cosine filters
+to perform pulse shaping and pulse matching. This is something I did not have
+previous experience with. I also learned about the application of a Costas loop to recover the phase
+changes in a modulated carrier, and I learned that there is an inherent ambiguity
+in phase that may have to be corrected after identifying symbols.
+
+\subsection{Future work}
+
+One thing I had hoped to get working in this project that proved more difficult
+than I had anticipated was to transmit a secret message from one device to 
+another using this method. I had hoped that the ultrasonic method of transmission
+would work well, but it seemed to be hard to detect using the Costas loop.
+Perhaps another keying method would be applicable here.
+
+\vspace{6pt}
+
+After many tests of trying to make this transmission ``over the air'' i.e. using
+sound waves, I was finally successful at decoding a message with 630 samples per
+symbol and a carrier frequency of 280 Hz that was played on my phone and recorded
+on my computer. The ``secret'' signal was incredibly loud and easy to detect,
+however, so I did not consider that a success. The recording which I was able
+to detect is included here; it is called \texttt{2024-11-30\_16-58-45.wav}.
+
+\vspace{6pt}
+
+I also think it would be interesting to apply an error-correcting code to this
+system and measure the increased reliability.
+
+\subsection{Summary}
+This project was an excellent opportunity for me to practice my skills applying
+incredibly useful MATLAB commands, such as filter design, frequency domain analysis,
+and simulation of communications systems. The success of using BPSK to hide a message
+in an audio signal has piqued my interest in learning about other keying methods
+and communication systems.
+
 \section{References}
+
+\begin{enumerate}
+  \item Shilpi Mishra, Virendra Kumar Yadav, et al, ``Audio Steganography Techniques: A
+Survey'' Advances in Computer and Computational Sciences, Advances in Intelligent
+Systems and Computing 554, S.K. Bhatia et al. (eds.).
+  \item Schaumont, Patrick. ``Digital Modulation.'' \textit{Worcester Polytechnic University}, 2021. \url{https://schaumont.dyn.wpi.edu/ece4703b21/lecture9.html}
+\end{enumerate}
 
 \newpage
 \section{Appendix: MATLAB Code}
 \subsection{\texttt{project\_code.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{project_code.m}
 
+\newpage
+\subsection{\texttt{constants.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/constants.m}
+
+\newpage
 \subsection{\texttt{encode\_message\_LSB.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/encode_message_LSB.m}
 
+\newpage
 \subsection{\texttt{decode\_message\_LSB.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/decode_message_LSB.m}
 
+\newpage
 \subsection{\texttt{encode\_message\_LSB\_repeat.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/encode_message_LSB_repeat.m}
 
+\newpage
 \subsection{\texttt{decode\_message\_LSB\_repeat.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/decode_message_LSB_repeat.m}
 
+\newpage
 \subsection{\texttt{encode\_message\_BPSK.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/encode_message_BPSK.m}
 
+\newpage
 \subsection{\texttt{decode\_message\_BPSK.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/decode_message_BPSK.m}
 
+\newpage
 \subsection{\texttt{plot\_fft\_with\_Fs.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/plot_fft_with_Fs.m}
 
+\newpage
 \subsection{\texttt{plot\_graphs.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{plot_graphs.m}
 

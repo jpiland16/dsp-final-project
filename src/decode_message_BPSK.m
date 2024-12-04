@@ -66,6 +66,8 @@ function [M] = decode_message_BPSK(received_signal)
     
     plot(0:(samples_per_symbol - 1), scores)
 
+    assignin('base', 'baseband1', synchronized_signal); % used for plotting later
+
     % select the offset that gives us the maximum mean absolute deviation
     [~, offset_index] = max(scores);
     offset = offset_index - 1;
@@ -108,7 +110,7 @@ function [M] = decode_message_BPSK(received_signal)
     i = L + 1;
     while i + symbol_count <= length(decoded_symbols)
         if all(decoded_symbols(i - L : i - 1) == (symbol_sync' + 1) * 0.5)
-            char_symbols(char_bit_counter : char_bit_counter + symbol_count - 1) = decoded_symbols(i : min(i + symbol_count - 1));
+            char_symbols(char_bit_counter : char_bit_counter + symbol_count - 1) = decoded_symbols(i : i + symbol_count - 1);
             i = i + symbols_per_group;
             char_bit_counter = char_bit_counter + symbol_count;
         else
