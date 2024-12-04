@@ -7,7 +7,11 @@
 \usepackage{pdfpages}
 \usepackage{graphicx}
 \usepackage{minted}
+\usepackage{fontspec}
+\newfontfamily\monaco{Iosevka Fixed}[NFSSFamily=IosevkaFamily]
+\setminted{fontfamily=IosevkaFamily}
 \usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
 
 \setlength{\parindent}{0pt}
 
@@ -41,6 +45,9 @@ Johns Hopkins University\endgraf\bigskip\displaydate{date}}}
 \begin{document}
 \maketitle
 
+NOTE: All code, audio samples, and text files are available at 
+\url{https://github.com/jpiland16/dsp-final-project}.
+
 \newpage
 \section{Introduction}
 % Describe the project that you performed. What problem were 
@@ -51,9 +58,160 @@ Johns Hopkins University\endgraf\bigskip\displaydate{date}}}
 % approaches might be considered to address the same problem? What are
 % advantages and disadvantages to your approach?
 
+In this section, the general approaches to the problem are considered. First,
+LSB encoding is discussed, and then the alternative of binary phase-shift keying
+(which was the focus of this project) is introduced.
+
+\subsection{LSB encoding}
+
+One of the simplest ways to covertly insert secret information into an audio
+signal is to add this data to the least significant bit (LSB) of the audio data.
+For a 32-bit waveform, this has the effect of altering each sample of the data
+by one part in $2^31$ or less, i.e. one part in about 2 billion. This change is
+completely imperceptible to the human auditory system, and is essentially
+invisible to spectrum analysis with the naked eye. For example, the below shows
+the (non-normalized) spectrum of 8 seconds of audio before the secret message is
+added to the LSBs. 
+
+\begin{center}
+  \includegraphics[width=3in]{img/01_original_spectrum.png} \\
+  \textbf{Figure 1: Spectrum of signal used for hiding secret message, before inserting data.}
+\end{center}
+
+After adding the data to the LSB of each sample, the difference in the spectra
+between the secret audio and the unmodified audio is eight orders of magnitude
+smaller than the maximum amplitude of the original spectrum:
+
+\begin{center}
+  \includegraphics[width=3in]{img/02_difference_spectrum.png} \\
+  \textbf{Figure 2: Difference in spectra between original and secret audio.}
+\end{center}
+
+Using this technique, data can be hidden within
+the audio file at a rate of 1 bit per sample per second, so at a sample rate
+of 44.1 kHz, data can be hidden at a rate of about 5.38 kB/s. However, this
+encoding is extremely susceptible to noise - a result which will be shown in the
+next section (Results).
+
+\newpage
+\subsection{Binary phase-shift keying}
+Binary phase-shift keying (BPSK) is a subset of phase-shift keying that uses
+just two phases of a carrier wave to encode and transmit data. To better
+understand the transmission system developed in this project, the following
+diagram from Schaumont is helpful:
+
+\begin{center}
+  \includegraphics[width=7in]{img/commsystem.png} \\
+  \textbf{Figure 3: Simplified view of a data communication system.} \\
+  Figure reproduced from \href{https://schaumont.dyn.wpi.edu/ece4703b21/lecture9.html}{Schaumont}.
+\end{center}
+
+An adaptation of the BPSK modulator and demodulator was developed based on this
+diagram and the material present in Schaumont. The function of this system can
+be explained briefly as follows: first, a series of bits must be transformed
+into a set of symbols that can be used to modulate the wave. In this case, since
+we are using BPSK, the symbols chosen can simply be $-1$ and $+1$, since
+multiplying a carrier wave by these symbols will generate a 180-degree phase
+separation between symbols. Second, a pulse shaping filter must be applied to
+the symbols (which are upsampled to the sampling rate of the channel) in order
+to reduce the required bandwidth of the signal and allow for easier detection.
+Finally, the shaped signal (which is often called a `baseband' waveform) is
+multiplied by a carrier wave to create the modulated signal.
+
+\vspace{6pt}
+
+To receive the transmitted bits, this operation is essentially performed in
+reverse: the carrier wave must be detected and removed, and a matched filter can
+be used to recover the symbols. Finally, the symbols must be decoded back into
+bits to recover the original data.
+
+\vspace{6pt}
+
+The pulse-shaping filter chosen for this implementation was a root-raised cosine
+filter. The carrier frequency selected was seven times the symbol frequency,
+which means the carrier frequency is 19.29375 kHz with a choice of 16 samples per
+symbol and an audio sampling rate of 44.1 kHz. ($19.29375 = 7/16 \times 44.1$)
+
+\subsection{Selected samples}
+
+The audio selected for use in this project is ``Blinding Lights'' by The Weeknd,
+and the data selected for embedding is the text of 
+\textit{The Lion, the Witch, and the Wardrobe} by C. S. Lewis. There is no
+particular reason for this, other than the fact that these are things that the
+author would not mind hearing or reading repeatedly when working on the project.
+
 \section{Results}
 % This section will likely be the largest section in your report. It should
 % include figures, tables, graphs, etc. summarizing the results of your project.
+
+\subsection{Implementation of LSB encoding}
+
+LSB encoding was accomplished by converting the ASCII message into a bitstream
+using the least-significant-bit-first method. The eight bits representing each
+character were inserted into the LSBs of eight consecutive audio samples as
+shown in the code below, where $A$ is the audio to be modified:
+
+\inputminted[xleftmargin=24pt, linenos=true, breaklines, firstline=26, lastline=33]{matlab}{src/encode_message_LSB.m}
+
+However, as discussed previously, this encoding is extremely susceptible to
+the addition of noise. Adding a noise at a level of $-190$ dB (nearly 10 orders
+of magnitude smaller than the largest signal) is enough to render this encoding
+essentially useless. The added noise is imperceptible to the human ear (try
+listening to audio files 01 and 02 for comparison) and could be a simple
+technique to destroy any data hidden with LSB encoding. The below MATLAB code
+shows how the noise impacts the signal:
+
+\inputminted[xleftmargin=24pt, linenos=true, breaklines, firstline=38, lastline=39]{matlab}{project_code.m}
+
+With this change, almost 90\% of the characters received were incorrect. For
+comparison, the expected text to be returned looked like this:
+
+\begin{minted}[xleftmargin=24pt]{text}
+ONCE there were four children whose names were Peter, Susan, Edmund 
+and Lucy. This story is about ...
+\end{minted}
+
+but with the added $-190$ dB noise, we get this:
+
+\begin{minted}[xleftmargin=24pt]{text}
+kFBGthÕÿ5!t$Sð,fï1ie\(m©mH1NÄ|øj?1yoqmeq(t-se1ômdEJ,?Ï\}Sy.M)TF'÷oÀx²b,&#H-ªv. DxI³2sôoðù4Yv áiE\}dOU ...
+\end{minted}
+
+A possible solution to this might be to repeat each bit a certain number of
+times. To compare this result to the use of BPSK, where 16 samples per
+symbol was selected, each bit was repeated 16 times. With this repetition, the
+effect on the spectrum was still minimal, as shown below. However, an appearance
+of a sinc envelope (with period Fs/16) is now clearly visible, since the
+repetition of bits creates small rectangles in the signal with width 16/Fs. This
+sinc function is plotted on the graph below.
+
+\begin{center}
+  \includegraphics[width=3in]{img/04_difference_spectrum_repeat_sinc.png} \\
+  \textbf{Figure 3: Difference in spectra between original and secret audio when repeating bits.}
+\end{center}
+
+Using the repeats at this level of noise with a decoder that takes the majority
+consensus of the bits generates a significant improvement at this level of
+noise, but if the noise is increased even slightly, the data is once again
+destroyed. Below is the output of the decoder when using 16 repeats at the same
+noise level previously applied:
+
+\begin{minted}[xleftmargin=24pt]{text}
+ONCE tHere were four shaldren whose nam%s wer% Peper, Susan, Edmund 
+and Lucy. THas stor9 is about s
+\end{minted}
+
+With this change, 89\% of the bits were decoded correctly with the noise
+applied. However, this noise was incredibly small, as shown below, and this 
+necessitates an improved method of covertly encoding the data into the audio
+signal.
+
+\begin{center}
+  \includegraphics[width=3in]{img/05_difference_spectrum_repeat_sinc_noisy.png} \\
+  \textbf{Figure 4: Difference in spectra between original and secret audio with repeats and noise.}
+\end{center}
+
+\subsection{Implementation of BPSK modulator/demodulator}
 
 \section{Summary and Future Work}
 % What did you learn while completing this
@@ -66,10 +224,28 @@ Johns Hopkins University\endgraf\bigskip\displaydate{date}}}
 \subsection{\texttt{project\_code.m}}
 \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{project_code.m}
 
-% \subsection{\texttt{encode\_message\_LSB.m}}
-% \inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{encode_message_}
+\subsection{\texttt{encode\_message\_LSB.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/encode_message_LSB.m}
 
 \subsection{\texttt{decode\_message\_LSB.m}}
-\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{project_code.m}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/decode_message_LSB.m}
+
+\subsection{\texttt{encode\_message\_LSB\_repeat.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/encode_message_LSB_repeat.m}
+
+\subsection{\texttt{decode\_message\_LSB\_repeat.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/decode_message_LSB_repeat.m}
+
+\subsection{\texttt{encode\_message\_BPSK.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/encode_message_BPSK.m}
+
+\subsection{\texttt{decode\_message\_BPSK.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/decode_message_BPSK.m}
+
+\subsection{\texttt{plot\_fft\_with\_Fs.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{src/plot_fft_with_Fs.m}
+
+\subsection{\texttt{plot\_graphs.m}}
+\inputminted[xleftmargin=24pt, linenos=true, breaklines]{matlab}{plot_graphs.m}
 
 \end{document}

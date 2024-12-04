@@ -1,4 +1,4 @@
-function plot_fft_with_Fs(data, Fs)
+function [F] = plot_fft_with_Fs(data, Fs)
     % Plot the fft of `data` with frequency in Hz labeled on the x-axis.
     %
     % Parameters:
@@ -12,4 +12,8 @@ function plot_fft_with_Fs(data, Fs)
 
     xlabel("Frequency (Hz)")
     ylabel("Magnitude")
+
+    if nargout == 1
+        F = frequencies;
+    end
 end

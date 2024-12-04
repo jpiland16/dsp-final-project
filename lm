@@ -1,2 +1,2 @@
 trap "latexmk -c" SIGINT
-latexmk -shell-escape -pdf -pvc -f piland_jonathan_final_project.tex
+latexmk -shell-escape -pdfxe -pvc -f piland_jonathan_final_project.tex

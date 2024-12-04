@@ -7,4 +7,6 @@ project.zip
 *.aux
 *.asv
 *.zip
+*.xdv
+*.png
 _minted*

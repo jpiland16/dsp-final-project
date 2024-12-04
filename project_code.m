@@ -7,6 +7,7 @@
 rng(555);
 
 addpath("src")
+run("src/constants.m")
 
 [audio, Fs] = audioread("background/weeknd.wav");
 lewis = fileread("secret_messages/lewis.txt");
@@ -15,7 +16,7 @@ secret_message = lewis(1:Fs); % select Fs characters --> 8 seconds
 
 % select just one channel, and start 10 seconds in; convert to integer
 audio_int32 = int32(audio(:, 1) * (2^31)); 
-background_audio = audio_int32(10*Fs:18*Fs); 
+background_audio = audio_int32(10*Fs:18*Fs - 1); 
 
 secret_audio = encode_message_LSB(background_audio, secret_message);
 received_message = decode_message_LSB(secret_audio);
@@ -48,8 +49,8 @@ disp(correct/length(secret_message))
 
 N = 16; % 16 repeats
 secret_message_short = secret_message(1:floor(Fs/N)); % select 8 seconds of characters
-secret_audio_repeat = encode_message_LSB_repeat(int32(audio(:, 1) * 2^31), secret_message_short, N);
-audiowrite("generated_examples/03_lsb_lewis_8s_repeat.wav", secret_audio, Fs, "BitsPerSample", 32);
+secret_audio_repeat = encode_message_LSB_repeat(background_audio, secret_message_short, N);
+audiowrite("generated_examples/03_lsb_lewis_8s_repeat.wav", secret_audio_repeat, Fs, "BitsPerSample", 32);
 
 received_message_repeat = decode_message_LSB_repeat(secret_audio_repeat, N);
 assert(all(received_message_repeat == secret_message_short), "received message with repeat not equal to secret message")
@@ -60,7 +61,7 @@ disp(received_message_repeat(1:100))
 
 secret_audio_noisy_repeat = secret_audio_repeat + int32((randn(size(secret_audio_repeat)) * 0.0000000002) * 2^31);
 received_message_noisy_repeat = decode_message_LSB_repeat(secret_audio_noisy_repeat, N);
-audiowrite("generated_examples/04_lsb_lewis_8s_repeat_noisy.wav", secret_audio, Fs, "BitsPerSample", 32);
+audiowrite("generated_examples/04_lsb_lewis_8s_repeat_noisy.wav", secret_audio_noisy_repeat, Fs, "BitsPerSample", 32);
 
 disp(received_message_noisy_repeat(1:100))
 correct = sum(received_message_noisy_repeat == secret_message_short);
@@ -92,6 +93,7 @@ correct = sum(valid_message == secret_message_bpsk);
 disp(correct)
 disp(length(secret_message_bpsk))
 disp(correct/length(secret_message_bpsk))
+
 %% demonstrate read/write from file
 
 [secret_audio_bpsk_again, Fs] = audioread("generated_examples/05_lsb_lewis_8s_bpsk.wav");
@@ -113,3 +115,7 @@ correct = sum(valid_message == secret_message_bpsk);
 disp(correct)
 disp(length(secret_message_bpsk))
 disp(correct/length(secret_message_bpsk))
+
+%% show plots
+
+run("plot_graphs.m")
